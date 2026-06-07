@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>재순환 공정 물질수지 시뮬레이터</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0f1117;
+    --surface:   #181c27;
+    --surface2:  #1f2435;
+    --border:    rgba(255,255,255,0.08);
+    --border2:   rgba(255,255,255,0.14);
+    --text:      #e8eaf0;
+    --muted:     #7a8099;
+    --blue:      #4f8ef7;
+    --blue-dim:  #1a2f5a;
+    --green:     #3ecf72;
+    --green-dim: #0e3320;
+    --amber:     #f5a623;
+    --amber-dim: #3a2608;
+    --red:       #f25c5c;
+    --red-dim:   #3a1010;
+    --purple:    #a78bfa;
+    --purple-dim:#2a1f4a;
+    --mono:      'DM Mono', monospace;
+    --sans:      'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 2rem;
+  }
+
+  header {
+    margin-bottom: 2rem;
+  }
+  header h1 {
+    font-size: 1.25rem;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: var(--text);
+  }
+  header p {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 4px;
+    font-family: var(--mono);
+  }
+
+  .layout {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* ── TOP PANEL ── */
+  .left { display: flex; flex-direction: column; gap: 12px; }
+
+  .param-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: 12px;
+    padding: 1.1rem 1.25rem;
+  }
+
+  .card-title {
+    font-size: 0.7rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 1rem;
+  }
+
+  .param-item { margin-bottom: 14px; }
+  .param-item:last-child { margin-bottom: 0; }
+
+  .param-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+  }
+  .param-name {
+    font-size: 0.8rem;
+    color: var(--text);
+  }
+  .param-sym {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  .input-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .num-input {
+    width: 72px;
+    font-family: var(--mono);
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text);
+    background: var(--surface2);
+    border: 0.5px solid var(--border2);
+    border-radius: 7px;
+    padding: 6px 8px;
+    text-align: right;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .num-input:focus { border-color: var(--blue); }
+  .pct {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  /* KPI grid */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .kpi-grid.five { grid-template-columns: 1fr 1fr 1fr 1fr 1fr; }
+
+  .kpi {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 10px 12px;
+    border: 0.5px solid var(--border);
+  }
+  .kpi.span2 { grid-column: span 2; }
+  .kpi-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .kpi-val {
+    font-family: var(--mono);
+    font-size: 1.25rem;
+    font-weight: 500;
+  }
+  .kpi-unit { font-size: 0.7rem; color: var(--muted); margin-left: 2px; }
+
+  .kpi.blue  { border-color: rgba(79,142,247,0.3); }
+  .kpi.blue  .kpi-val { color: var(--blue); }
+  .kpi.green .kpi-val { color: var(--green); }
+  .kpi.amber .kpi-val { color: var(--amber); }
+  .kpi.red   .kpi-val { color: var(--red); }
+  .kpi.purple .kpi-val { color: var(--purple); }
+
+  /* ── RIGHT PANEL ── */
+  .right { display: flex; flex-direction: column; gap: 12px; }
+
+  .diagram-wrap { overflow: visible; }
+  .diagram-wrap svg { width: 100%; display: block; }
+
+  .balance-bar {
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 14px;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  .balance-bar span.ok  { color: var(--green); }
+  .balance-bar span.val { color: var(--text); }
+
+  @media (max-width: 760px) {
+    body { padding: 1rem; }
+    .layout { grid-template-columns: 1fr; }
+    .kpi-grid.five { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>재순환 공정 물질수지 시뮬레이터</h1>
+  <p>Recycle Loop Mass Balance  ·  Overall: F = P + B + L</p>
+</header>
+
+<div class="layout">
+
+  <!-- LEFT -->
+  <div class="left">
+
+    <div class="card">
+      <div class="card-title">입력 파라미터</div>
+
+      <div class="param-grid">
+        <div class="param-item" style="margin-bottom:0">
+          <div class="param-header"><span class="param-name">전환율</span><span class="param-sym">x</span></div>
+          <div class="input-row">
+            <input type="number" class="num-input" id="n_x" min="1" max="99" step="1" value="50" oninput="sync('x',this.value)" style="width:100%">
+            <span class="pct">%</span>
+          </div>
+        </div>
+        <div class="param-item" style="margin-bottom:0">
+          <div class="param-header"><span class="param-name">선택도</span><span class="param-sym">S</span></div>
+          <div class="input-row">
+            <input type="number" class="num-input" id="n_S" min="1" max="100" step="1" value="100" oninput="sync('S',this.value)" style="width:100%">
+            <span class="pct">%</span>
+          </div>
+        </div>
+        <div class="param-item" style="margin-bottom:0">
+          <div class="param-header"><span class="param-name">미반응 원료 회수율</span><span class="param-sym">η</span></div>
+          <div class="input-row">
+            <input type="number" class="num-input" id="n_eta" min="1" max="100" step="1" value="100" oninput="sync('eta',this.value)" style="width:100%">
+            <span class="pct">%</span>
+          </div>
+        </div>
+        <div class="param-item" style="margin-bottom:0">
+          <div class="param-header"><span class="param-name">제품 회수율</span><span class="param-sym">ρ</span></div>
+          <div class="input-row">
+            <input type="number" class="num-input" id="n_rho" min="1" max="100" step="1" value="100" oninput="sync('rho',this.value)" style="width:100%">
+            <span class="pct">%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">핵심 지표 (F = 100 기준)</div>
+      <div class="kpi-grid" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr; margin-bottom:8px;">
+        <div class="kpi blue">
+          <div class="kpi-label">T / F 비</div>
+          <div class="kpi-val" id="kpi_tf">—</div>
+        </div>
+        <div class="kpi green">
+          <div class="kpi-label">P / F 비</div>
+          <div class="kpi-val" id="kpi_pf">—</div>
+        </div>
+        <div class="kpi purple">
+          <div class="kpi-label">재순환 R</div>
+          <div class="kpi-val" id="kpi_R">—</div>
+        </div>
+        <div class="kpi green">
+          <div class="kpi-label">제품 P</div>
+          <div class="kpi-val" id="kpi_P">—</div>
+        </div>
+        <div class="kpi amber">
+          <div class="kpi-label">부산물 B</div>
+          <div class="kpi-val" id="kpi_B">—</div>
+        </div>
+        <div class="kpi red">
+          <div class="kpi-label">손실 L</div>
+          <div class="kpi-val" id="kpi_L">—</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM -->
+  <div class="right" style="display:flex;flex-direction:column;gap:12px;">
+    <div class="card diagram-wrap">
+      <div class="card-title">블록 다이어그램</div>
+      <svg viewBox="0 0 620 235" role="img">
+        <title>재순환 공정 블록 다이어그램</title>
+        <defs>
+          <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+        </defs>
+
+        <!-- F arrow -->
+        <line id="arr_F" x1="8" y1="100" x2="108" y2="100" stroke="#4f8ef7" stroke-width="2" marker-end="url(#arr)" fill="none"/>
+        <text id="lbl_F" x="58" y="91" text-anchor="middle" font-size="11" font-weight="500" fill="#4f8ef7" font-family="DM Mono, monospace">F = 100</text>
+
+        <!-- Reactor -->
+        <rect x="110" y="70" width="120" height="60" rx="8" fill="#1a2f5a" stroke="#4f8ef7" stroke-width="1"/>
+        <text x="170" y="97" text-anchor="middle" font-size="12" font-weight="500" fill="#e8eaf0" font-family="DM Sans, sans-serif">반응기</text>
+        <text x="170" y="113" text-anchor="middle" font-size="10" fill="#7a8099" font-family="DM Mono, monospace">Reactor</text>
+        <text id="lbl_T" x="170" y="63" text-anchor="middle" font-size="11" font-weight="500" fill="#4f8ef7" font-family="DM Mono, monospace">T = ?</text>
+
+        <!-- Arrow reactor → separator -->
+        <line x1="230" y1="100" x2="308" y2="100" stroke="#4a5068" stroke-width="1.5" marker-end="url(#arr)" fill="none"/>
+
+        <!-- Separator -->
+        <rect x="310" y="70" width="120" height="60" rx="8" fill="#0e3320" stroke="#3ecf72" stroke-width="1"/>
+        <text x="370" y="97" text-anchor="middle" font-size="12" font-weight="500" fill="#e8eaf0" font-family="DM Sans, sans-serif">분리기</text>
+        <text x="370" y="113" text-anchor="middle" font-size="10" fill="#7a8099" font-family="DM Mono, monospace">Separator</text>
+
+        <!-- P arrow -->
+        <line x1="430" y1="82" x2="500" y2="82" stroke="#3ecf72" stroke-width="2" marker-end="url(#arr)" fill="none"/>
+        <text id="lbl_P" x="505" y="86" text-anchor="start" font-size="11" font-weight="500" fill="#3ecf72" font-family="DM Mono, monospace">P = ?  제품</text>
+
+        <!-- B arrow -->
+        <line x1="430" y1="100" x2="500" y2="100" stroke="#f5a623" stroke-width="1.5" marker-end="url(#arr)" fill="none"/>
+        <text id="lbl_B" x="505" y="104" text-anchor="start" font-size="11" font-weight="500" fill="#f5a623" font-family="DM Mono, monospace">B = ?  부산물</text>
+
+        <!-- L arrow -->
+        <line x1="430" y1="118" x2="500" y2="118" stroke="#f25c5c" stroke-width="1.5" marker-end="url(#arr)" fill="none"/>
+        <text id="lbl_L" x="505" y="122" text-anchor="start" font-size="11" font-weight="500" fill="#f25c5c" font-family="DM Mono, monospace">L = ?  손실(Lp+Lf)</text>
+
+        <!-- Recycle R -->
+        <path id="path_R" d="M370 130 L370 195 L170 195 L170 130" fill="none" stroke="#a78bfa" stroke-width="2" marker-end="url(#arr)" stroke-dasharray="6 3"/>
+        <text id="lbl_R" x="270" y="213" text-anchor="middle" font-size="11" font-weight="500" fill="#a78bfa" font-family="DM Mono, monospace">R = ?  (재순환)</text>
+      </svg>
+    </div>
+
+    <div class="balance-bar" id="bal_bar">
+      Overall balance: F = P + B + L
+    </div>
+  </div>
+
+</div>
+
+<script>
+const params = { x: 50, S: 100, eta: 100, rho: 100 };
+
+function clamp(v, mn, mx) { return Math.max(mn, Math.min(mx, v)); }
+
+function sync(key, val) {
+  const el = document.getElementById('n_' + key);
+  let v = parseFloat(val);
+  if (isNaN(v)) return;
+  params[key] = clamp(v, parseFloat(el.min), parseFloat(el.max));
+  recalc();
+}
+
+function fmt(n, d=1) { return isFinite(n) ? n.toFixed(d) : '∞'; }
+
+function recalc() {
+  const x   = params.x   / 100;
+  const S   = params.S   / 100;
+  const eta = params.eta / 100;
+  const rho = params.rho / 100;
+  const F   = 100;
+
+  const denom = 1 - (1 - x) * eta;
+  const TF = denom <= 0 ? Infinity : 1 / denom;
+  const T  = TF * F;
+  const R  = T * (1 - x) * eta;
+  const P  = T * x * S * rho;
+  const B  = T * x * (1 - S);
+  const L  = T * x * S * (1 - rho) + T * (1 - x) * (1 - eta);
+
+  // KPIs
+  const PF = P / F;
+  document.getElementById('kpi_tf').textContent = fmt(TF);
+  document.getElementById('kpi_pf').textContent = fmt(PF, 2);
+  document.getElementById('kpi_R').textContent = fmt(R);
+  document.getElementById('kpi_P').textContent = fmt(P);
+  document.getElementById('kpi_B').textContent = fmt(B);
+  document.getElementById('kpi_L').textContent = fmt(L);
+
+  // Diagram labels
+  document.getElementById('lbl_T').textContent = 'T = ' + fmt(T, 1);
+  document.getElementById('lbl_P').textContent = 'P = ' + fmt(P, 1) + '  제품';
+  document.getElementById('lbl_B').textContent = 'B = ' + fmt(B, 1) + '  부산물';
+  document.getElementById('lbl_L').textContent = 'L = ' + fmt(L, 1) + '  손실(Lp+Lf)';
+  document.getElementById('lbl_R').textContent = 'R = ' + fmt(R, 1) + '  (재순환)';
+
+  // Recycle arrow thickness
+  document.getElementById('path_R').setAttribute('stroke-width', Math.max(1, Math.min(5, R / 30)).toFixed(1));
+
+  // Overall balance
+  const sum = P + B + L;
+  const ok = Math.abs(sum - F) < 0.05;
+  const bar = document.getElementById('bal_bar');
+  bar.innerHTML =
+    `Overall balance &nbsp;|&nbsp; ` +
+    `F(<span class="val">${fmt(F,0)}</span>) = ` +
+    `P(<span class="val">${fmt(P,1)}</span>) + ` +
+    `B(<span class="val">${fmt(B,1)}</span>) + ` +
+    `L(<span class="val">${fmt(L,1)}</span>) = ` +
+    `<span class="val">${fmt(sum,1)}</span> ` +
+    `<span class="${ok ? 'ok' : ''}">${ok ? '✓' : '!'}</span>`;
+}
+
+recalc();
+</script>
+</body>
+</html>

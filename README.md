@@ -3,4 +3,4 @@ In general, chemical process is composed of a rection section and a separation s
 
 This simple overall balance calculator calculate overall and major internal stream flow rates based on user's input. Major parameters are reactor conversion, product selectivity, product and uncoverted feedstock recoveries in separation section.
 
-Copy this file and open your brower, interactive interface make the sentivity analysis easy.
+Copy this file (index.html) and open it on any brower, you get stream rates as well as major performance index.
